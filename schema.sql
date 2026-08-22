@@ -1,0 +1,17 @@
+create extension if not exists pgcrypto;
+create table if not exists public.categories(id uuid primary key default gen_random_uuid(),name text not null unique,created_at timestamptz not null default now());
+create table if not exists public.books(id uuid primary key default gen_random_uuid(),title text not null,author text,category_id uuid references public.categories(id) on delete set null,file_path text not null,created_at timestamptz not null default now());
+alter table public.categories enable row level security; alter table public.books enable row level security;
+drop policy if exists "public can read categories" on public.categories; create policy "public can read categories" on public.categories for select to anon,authenticated using(true);
+drop policy if exists "public can read books" on public.books; create policy "public can read books" on public.books for select to anon,authenticated using(true);
+drop policy if exists "admin manage categories" on public.categories; create policy "admin manage categories" on public.categories for all to authenticated using(auth.uid()='ba8bf619-3f66-42b8-8963-408bac70349c'::uuid) with check(auth.uid()='ba8bf619-3f66-42b8-8963-408bac70349c'::uuid);
+drop policy if exists "admin insert books" on public.books; create policy "admin insert books" on public.books for insert to authenticated with check(auth.uid()='ba8bf619-3f66-42b8-8963-408bac70349c'::uuid);
+drop policy if exists "admin update books" on public.books; create policy "admin update books" on public.books for update to authenticated using(auth.uid()='ba8bf619-3f66-42b8-8963-408bac70349c'::uuid) with check(auth.uid()='ba8bf619-3f66-42b8-8963-408bac70349c'::uuid);
+drop policy if exists "admin delete books" on public.books; create policy "admin delete books" on public.books for delete to authenticated using(auth.uid()='ba8bf619-3f66-42b8-8963-408bac70349c'::uuid);
+insert into storage.buckets(id,name,public) values('books','books',true) on conflict(id) do update set public=true;
+drop policy if exists "public read book files" on storage.objects; create policy "public read book files" on storage.objects for select to anon,authenticated using(bucket_id='books');
+drop policy if exists "admin upload book files" on storage.objects; create policy "admin upload book files" on storage.objects for insert to authenticated with check(bucket_id='books' and auth.uid()='ba8bf619-3f66-42b8-8963-408bac70349c'::uuid);
+drop policy if exists "admin update book files" on storage.objects; create policy "admin update book files" on storage.objects for update to authenticated using(bucket_id='books' and auth.uid()='ba8bf619-3f66-42b8-8963-408bac70349c'::uuid) with check(bucket_id='books' and auth.uid()='ba8bf619-3f66-42b8-8963-408bac70349c'::uuid);
+drop policy if exists "admin delete book files" on storage.objects; create policy "admin delete book files" on storage.objects for delete to authenticated using(bucket_id='books' and auth.uid()='ba8bf619-3f66-42b8-8963-408bac70349c'::uuid);
+insert into public.categories(name) values('উপন্যাস'),('গল্প'),('কবিতা'),('ইতিহাস'),('জীবনী'),('শিক্ষা'),('ধর্ম'),('বিজ্ঞান') on conflict(name) do nothing;
+select 'GRONTHAGAR V2 DATABASE SETUP COMPLETE' as status;
